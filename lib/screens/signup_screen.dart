@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'Home/home_screen.dart';
-import 'login_screen.dart'; // تأكدي من وجود هذا الـ import للربط بصفحة الدخول
+import 'login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -22,8 +25,10 @@ class _SignupScreenState extends State<SignupScreen> {
 
   bool _isPasswordVisible = false;
   bool _isConfirmVisible = false;
+  bool _isLoading = false;
 
   static const Color primaryColor = Color(0xFF67C2B9);
+  static const String baseUrl = 'https://localhost:7057'; // غير الرابط حسب إعداداتك
 
   @override
   void dispose() {
@@ -34,6 +39,70 @@ class _SignupScreenState extends State<SignupScreen> {
     _passController.dispose();
     _confirmPassController.dispose();
     super.dispose();
+  }
+
+  // دالة التسجيل
+  Future<void> _register() async {
+    if (!_formKey.currentState!.validate()) return;
+    
+    setState(() => _isLoading = true);
+    
+    try {
+      final userName = '${_firstNameController.text.trim()}_${_lastNameController.text.trim()}';
+      
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/Auth/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'firstName': _firstNameController.text.trim(),
+          'lastName': _lastNameController.text.trim(),
+          'universityEmail': _emailController.text.trim(),
+          'password': _passController.text,
+          'confirmPassword': _confirmPassController.text,
+          'userName': userName,
+          'address': '',
+          'isAgree': true,
+          'rememberMe': false,
+        }),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        
+        if (data['isAuthenticated'] == true) {
+          // حفظ التوكن والمعلومات
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('auth_token', data['token']);
+          await prefs.setStringList('roles', List<String>.from(data['roles']));
+          await prefs.setString('user_email', data['email']);
+          
+          if (!mounted) return;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        } else {
+          _showErrorDialog(data['message'] ?? 'فشل إنشاء الحساب');
+        }
+      } else {
+        final errorData = jsonDecode(response.body);
+        _showErrorDialog(errorData.toString());
+      }
+    } catch (e) {
+      _showErrorDialog('خطأ في الاتصال بالخادم. تأكد من تشغيل الخادم');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showErrorDialog(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -59,7 +128,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     SizedBox(height: screenHeight * 0.04),
                     _buildSignupButton(context),
                     const SizedBox(height: 20),
-                    _buildLoginRedirect(context), // هنا التعديل المطلوب
+                    _buildLoginRedirect(context),
                     SizedBox(height: screenHeight * 0.03),
                   ],
                 ),
@@ -128,21 +197,23 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Widget _buildSignupButton(BuildContext context) {
     return ElevatedButton(
-      onPressed: () {
-        if (_formKey.currentState!.validate()) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
-          );
-        }
-      },
+      onPressed: _isLoading ? null : _register,
       style: ElevatedButton.styleFrom(
         backgroundColor: primaryColor,
         minimumSize: const Size(double.infinity, 56),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         elevation: 0,
       ),
-      child: const Text('Signup', style: TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold)),
+      child: _isLoading
+          ? const SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+            )
+          : const Text(
+              'Signup',
+              style: TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold),
+            ),
     );
   }
 
@@ -209,13 +280,12 @@ class _SignupScreenState extends State<SignupScreen> {
     ]);
   }
 
-  // --- التعديل هنا لضمان الانتقال المباشر لصفحة اللوجن ---
+  // الانتقال لصفحة Login
   Widget _buildLoginRedirect(BuildContext context) {
     return Row(mainAxisAlignment: MainAxisAlignment.center, children: [
       const Text("Already have an Account? "),
       GestureDetector(
         onTap: () {
-          // الانتقال لصفحة Login وحذف شاشة الـ Signup من الـ Stack
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => const LoginScreen()),

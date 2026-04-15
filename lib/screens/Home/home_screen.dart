@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../app_drawer.dart';
 import '../Survey/survey_screen.dart';
 import '../Profile/about_you_screen.dart';
 import '../Journal/journal_screen.dart';
 import '../exercises_screen.dart';
 import '../goal_screen.dart';
-import 'home_widgets.dart'; // سنقوم بإنشاء هذا الملف في الخطوة التالية
+import 'home_widgets.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,33 +19,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int surveyCount = 0;
+  bool _isLoading = true;
+  
   static const Color primaryColor = Color(0xFF67C2B9);
-
-  // --- حساب النسبة المئوية للأهداف المكتملة ---
-  // --- حساب النسبة المئوية للأهداف المكتملة من المصدر الحقيقي ---
-  double get _overallProgress {
-    // هنا نصل للقائمة 'allGoals' الموجودة داخل كلاس 'GoalScreen'
-    // تأكدي أن القائمة في ملف goal_screen.dart مُعرفة كـ static
-
-    // سنستخدم اسم الكلاس مباشرة للوصول للبيانات
-    List<Goal> goals = GoalScreen.allGoals;
-
-    if (goals.isEmpty) return 0.0;
-
-    int totalSubTasks = 0;
-    int completedSubTasks = 0;
-
-    for (var goal in goals) {
-      totalSubTasks += goal.totalTasks; // إجمالي المهام المطلوبة في هذا الهدف
-      completedSubTasks +=
-          goal.completedTasks; // ما تم إنجازه فعلياً في هذا الهدف
-    }
-
-    if (totalSubTasks == 0) return 0.0;
-
-    // النسبة هي مجموع المنجز مقسوماً على مجموع الكلي
-    return completedSubTasks / totalSubTasks;
-  }
+  static const String baseUrl = 'https://localhost:7057'; // غير الرابط حسب إعداداتك
 
   // --- المخزن الرئيسي للبيانات (للمزامنة) ---
   List<Map<String, String>> globalJournalEntries = [
@@ -54,6 +34,84 @@ class _HomeScreenState extends State<HomeScreen> {
     },
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _loadGoals();
+  }
+
+  // تحميل الأهداف فقط
+  Future<void> _loadGoals() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      
+      if (token == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+      
+      // جلب الأهداف فقط
+      final goalsResponse = await http.get(
+        Uri.parse('$baseUrl/api/Goals/my-goals'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      
+      if (goalsResponse.statusCode == 200) {
+        final List<dynamic> goalsData = jsonDecode(goalsResponse.body);
+        
+        // تحديث قائمة الأهداف في GoalScreen
+        GoalScreen.allGoals = goalsData.map((g) => Goal(
+          id: g['id'],
+          description: g['title'] ?? '',
+          deadline: g['deadline'] != null 
+              ? DateTime.parse(g['deadline']) 
+              : DateTime.now().add(const Duration(days: 7)),
+          totalTasks: g['items']?.length ?? 0,
+          completedTasks: g['items']?.where((i) => i['isCompleted'] == true).length ?? 0,
+          priority: _getPriorityString(g['priority']),
+        )).toList();
+      }
+      
+    } catch (e) {
+      print('خطأ في تحميل الأهداف: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  String _getPriorityString(int? priority) {
+    switch (priority) {
+      case 3: return 'High';
+      case 2: return 'Medium';
+      default: return 'Low';
+    }
+  }
+
+  // --- حساب النسبة المئوية للأهداف المكتملة ---
+  double get _overallProgress {
+    List<Goal> goals = GoalScreen.allGoals;
+
+    if (goals.isEmpty) return 0.0;
+
+    int totalSubTasks = 0;
+    int completedSubTasks = 0;
+
+    for (var goal in goals) {
+      totalSubTasks += goal.totalTasks;
+      completedSubTasks += goal.completedTasks;
+    }
+
+    if (totalSubTasks == 0) return 0.0;
+
+    return completedSubTasks / totalSubTasks;
+  }
+
   int get journalCount => globalJournalEntries.length;
 
   void _incrementSurveyCounter() {
@@ -64,8 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            JournalScreen(journalEntries: globalJournalEntries),
+        builder: (context) => JournalScreen(journalEntries: globalJournalEntries),
       ),
     );
     setState(() {});
@@ -87,6 +144,17 @@ class _HomeScreenState extends State<HomeScreen> {
     if (result == true) {
       _incrementSurveyCounter();
     }
+  }
+
+  // تسجيل الخروج
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('auth_token');
+    await prefs.remove('roles');
+    await prefs.remove('user_email');
+    
+    if (!mounted) return;
+    Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
   }
 
   @override
@@ -111,7 +179,6 @@ class _HomeScreenState extends State<HomeScreen> {
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         actions: [
-          // استدعاء الميثود الخاصة بالـ Notification (موجودة بالأسفل)
           _buildNotificationAction(context),
           IconButton(
             icon: const Icon(
@@ -123,6 +190,26 @@ class _HomeScreenState extends State<HomeScreen> {
               MaterialPageRoute(builder: (context) => const AboutYouScreen()),
             ),
           ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.white),
+            onSelected: (value) {
+              if (value == 'logout') {
+                _logout();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, color: Colors.red, size: 20),
+                    SizedBox(width: 8),
+                    Text('Logout'),
+                  ],
+                ),
+              ),
+            ],
+          ),
           const SizedBox(width: 8),
         ],
         leading: Builder(
@@ -132,91 +219,98 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Hello, Engi!',
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: primaryColor),
+            )
+          : RefreshIndicator(
+              onRefresh: _loadGoals,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Hello, Engi!',
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const Text(
+                      'Your overview for today',
+                      style: TextStyle(color: Colors.grey, fontSize: 16),
+                    ),
+                    const SizedBox(height: 30),
+
+                    // --- الكروت الإحصائية ---
+                    Row(
+                      children: [
+                        HomeWidgets.buildStatCard(
+                          title: 'Survey Done',
+                          value: surveyCount.toString(),
+                          icon: Icons.fact_check_outlined,
+                          color: Colors.orange,
+                          onTap: _goToSurvey,
+                        ),
+                        const SizedBox(width: 15),
+                        HomeWidgets.buildStatCard(
+                          title: 'Journaling Done',
+                          value: journalCount.toString(),
+                          icon: Icons.edit_note_rounded,
+                          color: Colors.purple,
+                          onTap: _goToJournal,
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 25),
+
+                    // --- جزء شريط التقدم ---
+                    HomeWidgets.buildProgressSection(
+                      progress: progress,
+                      progressPercent: progressPercent,
+                      isGoalsEmpty: GoalScreen.allGoals.isEmpty,
+                      primaryColor: primaryColor,
+                    ),
+
+                    const SizedBox(height: 30),
+
+                    // --- جزء الأنشطة الأخيرة ---
+                    const Text(
+                      'Recent Activities',
+                      style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 15),
+
+                    HomeWidgets.buildActivityItem(
+                      title: 'Latest Survey Completed',
+                      time: '2 hours ago',
+                      activityIcon: Icons.assignment_turned_in_outlined,
+                      onTap: _goToSurvey,
+                    ),
+                    HomeWidgets.buildActivityItem(
+                      title: 'Latest Journal Entry Added',
+                      time: '5 hours ago',
+                      activityIcon: Icons.book_outlined,
+                      onTap: _goToJournal,
+                    ),
+                    HomeWidgets.buildActivityItem(
+                      title: 'Last Exercise Done',
+                      time: 'Just now',
+                      activityIcon: Icons.fitness_center_outlined,
+                      onTap: _goToExercises,
+                    ),
+                  ],
+                ),
               ),
             ),
-            const Text(
-              'Your overview for today',
-              style: TextStyle(color: Colors.grey, fontSize: 16),
-            ),
-            const SizedBox(height: 30),
-
-            // --- الكروت الإحصائية (يتم استدعاؤها من الملف الثاني) ---
-            Row(
-              children: [
-                HomeWidgets.buildStatCard(
-                  title: 'Survey Done',
-                  value: surveyCount.toString(),
-                  icon: Icons.fact_check_outlined,
-                  color: Colors.orange,
-                  onTap: _goToSurvey,
-                ),
-                const SizedBox(width: 15),
-                HomeWidgets.buildStatCard(
-                  title: 'Journaling Done',
-                  value: journalCount.toString(),
-                  icon: Icons.edit_note_rounded,
-                  color: Colors.purple,
-                  onTap: _goToJournal,
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 25),
-
-            // --- جزء شريط التقدم (يتم استدعاؤه من الملف الثاني) ---
-            HomeWidgets.buildProgressSection(
-              progress: progress,
-              progressPercent: progressPercent,
-              // فحص القائمة الـ static من GoalScreen
-              isGoalsEmpty: GoalScreen.allGoals.isEmpty,
-              primaryColor: primaryColor,
-            ),
-
-            const SizedBox(height: 30),
-
-            // --- جزء الأنشطة الأخيرة (يتم استدعاؤها من الملف الثاني) ---
-            const Text(
-              'Recent Activities',
-              style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 15),
-
-            HomeWidgets.buildActivityItem(
-              title: 'Latest Survey Completed',
-              time: '2 hours ago',
-              activityIcon: Icons.assignment_turned_in_outlined,
-              onTap: _goToSurvey,
-            ),
-            HomeWidgets.buildActivityItem(
-              title: 'Latest Journal Entry Added',
-              time: '5 hours ago',
-              activityIcon: Icons.book_outlined,
-              onTap: _goToJournal,
-            ),
-            HomeWidgets.buildActivityItem(
-              title: 'Last Exercise Done',
-              time: 'Just now',
-              activityIcon: Icons.fitness_center_outlined,
-              onTap: _goToExercises,
-            ),
-          ],
-        ),
-      ),
     );
   }
 
-  // ميثود الـ Notification (نفس الكود والتصميم والظلال)
+  // ميثود الـ Notification
   Widget _buildNotificationAction(BuildContext context) {
     return IconButton(
       icon: const Icon(Icons.notifications_none_rounded, color: Colors.white),

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'signup_screen.dart';
 import 'Home/home_screen.dart';
 import 'forgot_password.dart';
@@ -17,7 +20,9 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
 
   bool _isPasswordVisible = false;
+  bool _isLoading = false;
   static const Color primaryColor = Color(0xFF67C2B9);
+  static const String baseUrl = 'https://localhost:7057'; // غير الرابط حسب إعداداتك
 
   @override
   void dispose() {
@@ -27,6 +32,59 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  // دالة تسجيل الدخول
+  Future<void> _login() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/Auth/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': _emailController.text.trim(),
+          'password': _passwordController.text,
+        }),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        
+        if (data['isAuthenticated'] == true) {
+          // حفظ التوكن والمعلومات
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('auth_token', data['token']);
+          await prefs.setStringList('roles', List<String>.from(data['roles']));
+          await prefs.setString('user_email', data['email']);
+          
+          if (!mounted) return;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        } else {
+          _showErrorDialog(data['message'] ?? 'فشل تسجيل الدخول');
+        }
+      } else {
+        final errorData = jsonDecode(response.body);
+        _showErrorDialog(errorData.toString());
+      }
+    } catch (e) {
+      _showErrorDialog('خطأ في الاتصال بالخادم. تأكد من تشغيل الخادم');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showErrorDialog(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final double screenHeight = MediaQuery.of(context).size.height;
@@ -34,7 +92,6 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
-        // 2. لف العمود بـ Form وتمرير المفتاح
         child: Form(
           key: _formKey,
           child: Column(
@@ -76,7 +133,6 @@ class _LoginScreenState extends State<LoginScreen> {
       icon: Icons.email_outlined,
       controller: _emailController,
       keyboardType: TextInputType.emailAddress,
-      // قيد الإيميل
       validator: (value) {
         if (value == null || value.isEmpty) {
           return 'Please enter your email';
@@ -95,7 +151,6 @@ class _LoginScreenState extends State<LoginScreen> {
       icon: Icons.lock_outline,
       isPassword: true,
       controller: _passwordController,
-      // قيد كلمة المرور
       validator: (value) {
         if (value == null || value.isEmpty) {
           return 'Please enter your password';
@@ -117,13 +172,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _buildLoginButton(BuildContext context) {
     return ElevatedButton(
-      onPressed: () {
-        // 3. التحقق من القيود قبل الانتقال
+      onPressed: _isLoading ? null : () {
         if (_formKey.currentState!.validate()) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
-          );
+          _login();
         }
       },
       style: ElevatedButton.styleFrom(
@@ -132,14 +183,22 @@ class _LoginScreenState extends State<LoginScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         elevation: 0,
       ),
-      child: const Text(
-        'Login',
-        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-      ),
+      child: _isLoading
+          ? const SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 2,
+              ),
+            )
+          : const Text(
+              'Login',
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
     );
   }
 
-  // تعديل الـ Widget الموحدة لدعم الـ Validator والـ Controller والـ KeyboardType
   Widget _customTextField({
     required String hint,
     required IconData icon,
@@ -154,12 +213,11 @@ class _LoginScreenState extends State<LoginScreen> {
       validator: validator,
       keyboardType: keyboardType,
       obscureText: isPassword && !_isPasswordVisible,
-      style: const TextStyle(color: Colors.black87), // لضمان ظهور النص عند الكتابة
+      style: const TextStyle(color: Colors.black87),
       decoration: InputDecoration(
         hintText: hint,
         prefixIcon: Icon(icon, color: primaryColor),
         suffixIcon: suffixIcon,
-        // أضفت Error Borders عشان يظهر اللون الأحمر عند الخطأ
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: primaryColor),
@@ -181,14 +239,13 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // --- بقية الـ UI والـ Clippers كما هي في كودك الأصلي ---
   Widget _buildHeaderImage(double screenHeight) {
     return SizedBox(
       width: double.infinity,
-      height: screenHeight * 0.12, // يمكنكِ تعديل الارتفاع حسب الرغبة
+      height: screenHeight * 0.12,
       child: Image.asset(
-        'images/top.png', // تأكدي من المسار الصحيح للصورة في مشروعك
-        fit: BoxFit.fill, // لضمان ملء العرض بالكامل
+        'images/top.png',
+        fit: BoxFit.fill,
       ),
     );
   }
@@ -202,24 +259,23 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-Widget _buildForgetPasswordButton() {
-  return Align(
-    alignment: Alignment.centerRight,
-    child: TextButton(
-      onPressed: () {
-        // الربط هنا للانتقال لصفحة نسيت كلمة المرور
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const ForgetPassword()),
-        );
-      },
-      child: const Text(
-        'Forget Password?',
-        style: TextStyle(color: primaryColor, fontWeight: FontWeight.w500),
+  Widget _buildForgetPasswordButton() {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: TextButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ForgetPassword()),
+          );
+        },
+        child: const Text(
+          'Forget Password?',
+          style: TextStyle(color: primaryColor, fontWeight: FontWeight.w500),
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildSignupRedirect() {
     return Row(

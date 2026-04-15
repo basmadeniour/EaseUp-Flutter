@@ -35,6 +35,7 @@ dependencies:
   flutter_launcher_icons: "^0.13.1"
   google_fonts: ^6.2.1
   url_launcher: ^6.3.0
+  shared_preferences: ^2.2.0
 
 flutter_launcher_icons:
   android: "launcher_icon"
@@ -80,8 +81,6 @@ flutter:
     - images/Mindfull Stretshing.jpeg
     - images/Morning Meditation.jpg
     - images/Relaxation.png
-
-
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
