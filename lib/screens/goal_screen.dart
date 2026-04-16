@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../config/api_config.dart'; // إضافة import الـ config
 
 class Goal {
   int? id;
@@ -40,7 +41,7 @@ class _GoalScreenState extends State<GoalScreen> {
   bool _isLoading = false;
   
   static const Color primaryColor = Color(0xFF67C2B9);
-  static const String baseUrl = 'https://localhost:7057'; // غير الرابط حسب إعداداتك
+  // تم حذف static const String baseUrl
 
   @override
   void initState() {
@@ -62,7 +63,7 @@ class _GoalScreenState extends State<GoalScreen> {
       }
       
       final response = await http.get(
-        Uri.parse('$baseUrl/api/Goals/my-goals'),
+        Uri.parse('${ApiConfig.baseUrl}/api/Goals/my-goals'), // استخدام ApiConfig
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -137,7 +138,7 @@ class _GoalScreenState extends State<GoalScreen> {
       final items = List.generate(tasks, (i) => 'مهمة ${i + 1}');
 
       final response = await http.post(
-        Uri.parse('$baseUrl/api/Goals/add'),
+        Uri.parse('${ApiConfig.baseUrl}/api/Goals/add'), // استخدام ApiConfig
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -198,7 +199,7 @@ class _GoalScreenState extends State<GoalScreen> {
       if (token == null) return;
 
       await http.post(
-        Uri.parse('$baseUrl/api/Goals/toggle-item/$itemId?goalId=$goalId'),
+        Uri.parse('${ApiConfig.baseUrl}/api/Goals/toggle-item/$itemId?goalId=$goalId'), // استخدام ApiConfig
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -229,7 +230,7 @@ class _GoalScreenState extends State<GoalScreen> {
       if (token == null) return;
 
       await http.delete(
-        Uri.parse('$baseUrl/api/Goals/delete/${goal.id}'),
+        Uri.parse('${ApiConfig.baseUrl}/api/Goals/delete/${goal.id}'), // استخدام ApiConfig
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',

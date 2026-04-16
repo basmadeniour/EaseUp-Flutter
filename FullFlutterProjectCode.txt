@@ -52,7 +52,8 @@ FILE: android\app\src\main\AndroidManifest.xml
     <application
         android:label="os2_project"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon">
+        android:icon="@mipmap/launcher_icon"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -93,7 +94,6 @@ FILE: android\app\src\main\AndroidManifest.xml
         </intent>
     </queries>
 </manifest>
-
 
 
 ===========================
@@ -657,6 +657,58 @@ class RunnerTests: XCTestCase {
 
 
 ===========================
+FILE: lib\config\api_config.dart
+===========================
+import 'package:flutter/foundation.dart';
+import 'dart:io';
+
+class ApiConfig {
+  // âœ… Ù„Ù„ÙˆÙŠØ¨ (Chrome)
+  static const String webBaseUrl = 'http://localhost:5293';
+  
+  // âœ… Ù„Ù„Ø£Ù†Ø¯Ø±ÙˆÙŠØ¯ Emulator
+  static const String androidEmulatorBaseUrl = 'http://10.0.2.2:5293';
+  
+  // âœ… Ù„Ù„Ø¬Ù‡Ø§Ø² Ø§Ù„Ø­Ù‚ÙŠÙ‚ÙŠ (ØºÙŠØ±ÙŠ Ø§Ù„Ù€ IP Ø­Ø³Ø¨ Ø´Ø¨ÙƒØªÙƒ)
+  static const String realDeviceBaseUrl = 'http://192.168.1.100:5293';
+  
+  // âœ… API Ø®Ø§Ø±Ø¬ÙŠ Ù„Ù„Ø§Ø³ØªØ¨ÙŠØ§Ù†Ø§Øª (Ø§Ø®ØªÙŠØ§Ø±ÙŠ)
+  static const String surveyApi = 'https://shrieky-stephan-uncontemned.ngrok-free.dev';
+  
+  // âœ… Ø§Ø®ØªÙŠØ§Ø± Ø§Ù„Ø¹Ù†ÙˆØ§Ù† Ø§Ù„Ù…Ù†Ø§Ø³Ø¨ ØªÙ„Ù‚Ø§Ø¦ÙŠØ§Ù‹
+  static String getBaseUrl() {
+    if (kIsWeb) {
+      return webBaseUrl;
+    } else if (Platform.isAndroid) {
+      // Ù„Ù„ØªÙ…ÙŠÙŠØ² Ø¨ÙŠÙ† Emulator ÙˆØ§Ù„Ø¬Ù‡Ø§Ø² Ø§Ù„Ø­Ù‚ÙŠÙ‚ÙŠ
+      // ÙŠÙ…ÙƒÙ†ÙƒÙ Ø§Ø³ØªØ®Ø¯Ø§Ù… Ù…ØªØºÙŠØ± Ø¨ÙŠØ¦Ø© Ø£Ùˆ ØªØ®Ø²ÙŠÙ† Ø§Ø®ØªÙŠØ§Ø± Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…
+      return androidEmulatorBaseUrl; // Ø£Ùˆ realDeviceBaseUrl
+    } else if (Platform.isIOS) {
+      return webBaseUrl; // iOS Simulator ÙŠØ³ØªØ®Ø¯Ù… localhost
+    } else {
+      return webBaseUrl; // Desktop
+    }
+  }
+  
+  // âœ… Ø·Ø±ÙŠÙ‚Ø© Ù…Ø¨Ø³Ø·Ø© Ù„Ù„Ø§Ø³ØªØ®Ø¯Ø§Ù…
+  static String get baseUrl => getBaseUrl();
+  
+  // âœ… Ø·Ø±ÙŠÙ‚Ø© Ù„Ù„ØªØ¨Ø¯ÙŠÙ„ Ø¨ÙŠÙ† Emulator ÙˆØ§Ù„Ø¬Ù‡Ø§Ø² Ø§Ù„Ø­Ù‚ÙŠÙ‚ÙŠ ÙŠØ¯ÙˆÙŠØ§Ù‹ (Ø§Ø®ØªÙŠØ§Ø±ÙŠ)
+  static bool useRealDevice = false; // ØºÙŠØ±ÙŠ Ø¥Ù„Ù‰ true Ù„Ù„Ø¬Ù‡Ø§Ø² Ø§Ù„Ø­Ù‚ÙŠÙ‚ÙŠ
+  
+  static String get dynamicBaseUrl {
+    if (kIsWeb) {
+      return webBaseUrl;
+    } else if (Platform.isAndroid) {
+      return useRealDevice ? realDeviceBaseUrl : androidEmulatorBaseUrl;
+    } else {
+      return webBaseUrl;
+    }
+  }
+}
+
+
+===========================
 FILE: lib\core\constants\app_colors.dart
 ===========================
 import 'package:flutter/material.dart';
@@ -906,6 +958,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../config/api_config.dart'; // Ø¥Ø¶Ø§ÙØ© import Ø§Ù„Ù€ config
 
 class ExercisesPage extends StatefulWidget {
   const ExercisesPage({super.key});
@@ -921,7 +974,7 @@ class _ExercisesPageState extends State<ExercisesPage> {
   List<Map<String, dynamic>> exercises = [];
   
   static const Color primaryColor = Color(0xFF67C2B9);
-  static const String baseUrl = 'https://localhost:7057'; // ØºÙŠØ± Ø§Ù„Ø±Ø§Ø¨Ø· Ø­Ø³Ø¨ Ø¥Ø¹Ø¯Ø§Ø¯Ø§ØªÙƒ
+  // ØªÙ… Ø­Ø°Ù Ø§Ù„Ø³Ø·Ø± Ø§Ù„Ø«Ø§Ø¨Øª ÙˆØ§Ø³ØªØ®Ø¯Ø§Ù… ApiConfig Ø¨Ø¯Ù„Ø§Ù‹ Ù…Ù†Ù‡
 
   @override
   void initState() {
@@ -938,7 +991,7 @@ class _ExercisesPageState extends State<ExercisesPage> {
       final token = prefs.getString('auth_token');
       
       final response = await http.get(
-        Uri.parse('$baseUrl/api/Exercises/all'),
+        Uri.parse('${ApiConfig.baseUrl}/api/Exercises/all'), // Ø§Ø³ØªØ®Ø¯Ø§Ù… ApiConfig
         headers: {
           'Content-Type': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
@@ -1063,7 +1116,7 @@ class _ExercisesPageState extends State<ExercisesPage> {
       }
       
       final response = await http.post(
-        Uri.parse('$baseUrl/api/Exercises/complete'),
+        Uri.parse('${ApiConfig.baseUrl}/api/Exercises/complete'), // Ø§Ø³ØªØ®Ø¯Ø§Ù… ApiConfig
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -1418,6 +1471,9 @@ FILE: lib\screens\forgot_password.dart
 ===========================
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../config/api_config.dart'; // Ø¥Ø¶Ø§ÙØ© import Ø§Ù„Ù€ config
 
 class ForgetPassword extends StatefulWidget {
   const ForgetPassword({super.key});
@@ -1427,10 +1483,14 @@ class ForgetPassword extends StatefulWidget {
 }
 
 class _ForgetPasswordState extends State<ForgetPassword> {
-  // 1. ØªØ¹Ø±ÙŠÙ Ù…ÙØªØ§Ø­ Ø§Ù„ÙÙˆØ±Ù… ÙˆØ§Ù„Ù€ Controller
+  // ØªØ¹Ø±ÙŠÙ Ù…ÙØªØ§Ø­ Ø§Ù„ÙÙˆØ±Ù… ÙˆØ§Ù„Ù€ Controller
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
+  
+  bool _isLoading = false;
+  
   static const Color primaryColor = Color(0xff64C3BF);
+  // ØªÙ… Ø­Ø°Ù static const String baseUrl ÙˆØ§Ø³ØªØ®Ø¯Ø§Ù… ApiConfig Ø¨Ø¯Ù„Ø§Ù‹ Ù…Ù†Ù‡
 
   @override
   void dispose() {
@@ -1438,23 +1498,96 @@ class _ForgetPasswordState extends State<ForgetPassword> {
     super.dispose();
   }
 
+  // Ø¯Ø§Ù„Ø© Ø¥Ø±Ø³Ø§Ù„ Ø·Ù„Ø¨ Ø¥Ø¹Ø§Ø¯Ø© ØªØ¹ÙŠÙŠÙ† ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±
+  Future<void> _sendResetLink() async {
+    // Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† ØµØ­Ø© Ø§Ù„Ø¥ÙŠÙ…ÙŠÙ„
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+    
+    setState(() => _isLoading = true);
+    
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/Auth/forgot-password'), // Ø§Ø³ØªØ®Ø¯Ø§Ù… ApiConfig
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'email': _emailController.text.trim(),
+        }),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(data['message'] ?? 'Reset link sent to your email'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          // Ø§Ù„Ø¹ÙˆØ¯Ø© Ø¥Ù„Ù‰ ØµÙØ­Ø© ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø¨Ø¹Ø¯ 2 Ø«Ø§Ù†ÙŠØ©
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) {
+              Navigator.pop(context);
+            }
+          });
+        }
+      } else if (response.statusCode == 400) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(data['message'] ?? 'Email not found'),
+              backgroundColor: Colors.orange,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('An error occurred. Please try again.'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Connection error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
-        // 2. Ù„Ù Ø§Ù„Ù…Ø­ØªÙˆÙ‰ Ø¨Ù€ Form
         child: Form(
           key: _formKey,
           child: Column(
             children: [
-              // ØªØ£ÙƒØ¯ÙŠ Ù…Ù† Ø§Ù„Ù…Ø³Ø§Ø± (assets Ø£Ùˆ images) Ø­Ø³Ø¨ Ù…Ø´Ø±ÙˆØ¹Ùƒ
+              // Ø§Ù„ØµÙˆØ±Ø© Ø§Ù„Ø¹Ù„ÙˆÙŠØ©
               SizedBox(
                 width: double.infinity,
-                height: 110, // ÙŠÙ…ÙƒÙ†ÙƒÙ ØªØ¹Ø¯ÙŠÙ„ Ø§Ù„Ø§Ø±ØªÙØ§Ø¹ Ø­Ø³Ø¨ Ø§Ù„Ø±ØºØ¨Ø©
+                height: 110,
                 child: Image.asset(
-                  'images/top.png', // ØªØ£ÙƒØ¯ÙŠ Ù…Ù† Ø§Ù„Ù…Ø³Ø§Ø± Ø§Ù„ØµØ­ÙŠØ­ Ù„Ù„ØµÙˆØ±Ø© ÙÙŠ Ù…Ø´Ø±ÙˆØ¹Ùƒ
-                  fit: BoxFit.fill, // Ù„Ø¶Ù…Ø§Ù† Ù…Ù„Ø¡ Ø§Ù„Ø¹Ø±Ø¶ Ø¨Ø§Ù„ÙƒØ§Ù…Ù„
+                  'images/top.png',
+                  fit: BoxFit.fill,
                 ),
               ),
 
@@ -1485,14 +1618,14 @@ class _ForgetPasswordState extends State<ForgetPassword> {
 
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                // 3. Ø§Ø³ØªØ®Ø¯Ø§Ù… TextFormField Ø¨Ø¯Ù„Ø§Ù‹ Ù…Ù† TextField Ù„Ø¯Ø¹Ù… Ø§Ù„Ù€ Validator
                 child: TextFormField(
                   controller: _emailController,
+                  enabled: !_isLoading,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter your email';
                     }
-                    if (!value.contains('@')) {
+                    if (!value.contains('@') || !value.contains('.com')) {
                       return 'Please enter a valid email';
                     }
                     return null;
@@ -1500,8 +1633,6 @@ class _ForgetPasswordState extends State<ForgetPassword> {
                   decoration: InputDecoration(
                     hintText: 'Email',
                     prefixIcon: const Icon(Icons.email, color: primaryColor),
-
-                    // ØªØµÙ…ÙŠÙ… Ø§Ù„Ø­Ø¯ÙˆØ¯ Ø§Ù„Ø¹Ø§Ø¯ÙŠØ©
                     enabledBorder: OutlineInputBorder(
                       borderSide: const BorderSide(
                         color: primaryColor,
@@ -1512,7 +1643,6 @@ class _ForgetPasswordState extends State<ForgetPassword> {
                     focusedBorder: const OutlineInputBorder(
                       borderSide: BorderSide(color: primaryColor, width: 2),
                     ),
-                    // 4. ØªØµÙ…ÙŠÙ… Ø§Ù„Ø­Ø¯ÙˆØ¯ Ø¹Ù†Ø¯ ÙˆØ¬ÙˆØ¯ Ø®Ø·Ø£ (Ø³ØªØ¸Ù‡Ø± Ø¨Ø§Ù„Ø£Ø­Ù…Ø± ØªÙ„Ù‚Ø§Ø¦ÙŠØ§Ù‹)
                     errorBorder: OutlineInputBorder(
                       borderSide: const BorderSide(color: Colors.red, width: 2),
                       borderRadius: BorderRadius.circular(5),
@@ -1528,17 +1658,7 @@ class _ForgetPasswordState extends State<ForgetPassword> {
               const SizedBox(height: 30),
 
               GestureDetector(
-                onTap: () {
-                  // 5. Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† Ø§Ù„ÙÙˆØ±Ù… Ø¹Ù†Ø¯ Ø§Ù„Ø¶ØºØ·
-                  if (_formKey.currentState!.validate()) {
-                    // Ø¥Ø°Ø§ ÙƒØ§Ù† Ø§Ù„Ø¥ÙŠÙ…ÙŠÙ„ Ù…ÙƒØªÙˆØ¨Ø§Ù‹ Ø¨Ø´ÙƒÙ„ ØµØ­ÙŠØ­
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Reset link sent to your email'),
-                      ),
-                    );
-                  }
-                },
+                onTap: _isLoading ? null : _sendResetLink,
                 child: Container(
                   width: 199.63,
                   height: 38.21,
@@ -1547,15 +1667,24 @@ class _ForgetPasswordState extends State<ForgetPassword> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Center(
-                    child: Text(
-                      'Reset Password',
-                      style: GoogleFonts.poppins(
-                        textStyle: const TextStyle(
-                          fontSize: 18,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            'Reset Password',
+                            style: GoogleFonts.poppins(
+                              textStyle: const TextStyle(
+                                fontSize: 18,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
                   ),
                 ),
               ),
@@ -1563,7 +1692,7 @@ class _ForgetPasswordState extends State<ForgetPassword> {
               const SizedBox(height: 20),
 
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: _isLoading ? null : () => Navigator.pop(context),
                 child: const Text(
                   'Back to Login',
                   style: TextStyle(color: primaryColor),
@@ -1578,7 +1707,6 @@ class _ForgetPasswordState extends State<ForgetPassword> {
 }
 
 
-
 ===========================
 FILE: lib\screens\goal_screen.dart
 ===========================
@@ -1586,6 +1714,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../config/api_config.dart'; // Ø¥Ø¶Ø§ÙØ© import Ø§Ù„Ù€ config
 
 class Goal {
   int? id;
@@ -1624,7 +1753,7 @@ class _GoalScreenState extends State<GoalScreen> {
   bool _isLoading = false;
   
   static const Color primaryColor = Color(0xFF67C2B9);
-  static const String baseUrl = 'https://localhost:7057'; // ØºÙŠØ± Ø§Ù„Ø±Ø§Ø¨Ø· Ø­Ø³Ø¨ Ø¥Ø¹Ø¯Ø§Ø¯Ø§ØªÙƒ
+  // ØªÙ… Ø­Ø°Ù static const String baseUrl
 
   @override
   void initState() {
@@ -1646,7 +1775,7 @@ class _GoalScreenState extends State<GoalScreen> {
       }
       
       final response = await http.get(
-        Uri.parse('$baseUrl/api/Goals/my-goals'),
+        Uri.parse('${ApiConfig.baseUrl}/api/Goals/my-goals'), // Ø§Ø³ØªØ®Ø¯Ø§Ù… ApiConfig
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -1721,7 +1850,7 @@ class _GoalScreenState extends State<GoalScreen> {
       final items = List.generate(tasks, (i) => 'Ù…Ù‡Ù…Ø© ${i + 1}');
 
       final response = await http.post(
-        Uri.parse('$baseUrl/api/Goals/add'),
+        Uri.parse('${ApiConfig.baseUrl}/api/Goals/add'), // Ø§Ø³ØªØ®Ø¯Ø§Ù… ApiConfig
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -1782,7 +1911,7 @@ class _GoalScreenState extends State<GoalScreen> {
       if (token == null) return;
 
       await http.post(
-        Uri.parse('$baseUrl/api/Goals/toggle-item/$itemId?goalId=$goalId'),
+        Uri.parse('${ApiConfig.baseUrl}/api/Goals/toggle-item/$itemId?goalId=$goalId'), // Ø§Ø³ØªØ®Ø¯Ø§Ù… ApiConfig
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -1813,7 +1942,7 @@ class _GoalScreenState extends State<GoalScreen> {
       if (token == null) return;
 
       await http.delete(
-        Uri.parse('$baseUrl/api/Goals/delete/${goal.id}'),
+        Uri.parse('${ApiConfig.baseUrl}/api/Goals/delete/${goal.id}'), // Ø§Ø³ØªØ®Ø¯Ø§Ù… ApiConfig
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -2228,6 +2357,7 @@ import '../Journal/journal_screen.dart';
 import '../exercises_screen.dart';
 import '../goal_screen.dart';
 import 'home_widgets.dart';
+import '../../config/api_config.dart'; // Ø¥Ø¶Ø§ÙØ© import Ø§Ù„Ù€ config
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -2241,7 +2371,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   
   static const Color primaryColor = Color(0xFF67C2B9);
-  static const String baseUrl = 'https://localhost:7057'; // ØºÙŠØ± Ø§Ù„Ø±Ø§Ø¨Ø· Ø­Ø³Ø¨ Ø¥Ø¹Ø¯Ø§Ø¯Ø§ØªÙƒ
+  // ØªÙ… Ø­Ø°Ù static const String baseUrl
 
   // --- Ø§Ù„Ù…Ø®Ø²Ù† Ø§Ù„Ø±Ø¦ÙŠØ³ÙŠ Ù„Ù„Ø¨ÙŠØ§Ù†Ø§Øª (Ù„Ù„Ù…Ø²Ø§Ù…Ù†Ø©) ---
   List<Map<String, String>> globalJournalEntries = [
@@ -2274,7 +2404,7 @@ class _HomeScreenState extends State<HomeScreen> {
       
       // Ø¬Ù„Ø¨ Ø§Ù„Ø£Ù‡Ø¯Ø§Ù ÙÙ‚Ø·
       final goalsResponse = await http.get(
-        Uri.parse('$baseUrl/api/Goals/my-goals'),
+        Uri.parse('${ApiConfig.baseUrl}/api/Goals/my-goals'), // Ø§Ø³ØªØ®Ø¯Ø§Ù… ApiConfig
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -3221,6 +3351,7 @@ import 'package:http/http.dart' as http;
 import 'signup_screen.dart';
 import 'Home/home_screen.dart';
 import 'forgot_password.dart';
+import '../config/api_config.dart'; // Ø¥Ø¶Ø§ÙØ© import Ø§Ù„Ù€ config
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -3238,7 +3369,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
   static const Color primaryColor = Color(0xFF67C2B9);
-  static const String baseUrl = 'https://localhost:7057'; // ØºÙŠØ± Ø§Ù„Ø±Ø§Ø¨Ø· Ø­Ø³Ø¨ Ø¥Ø¹Ø¯Ø§Ø¯Ø§ØªÙƒ
+  // ØªÙ… Ø­Ø°Ù static const String baseUrl
 
   @override
   void dispose() {
@@ -3254,7 +3385,7 @@ class _LoginScreenState extends State<LoginScreen> {
     
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/Auth/login'),
+        Uri.parse('${ApiConfig.baseUrl}/api/Auth/login'), // Ø§Ø³ØªØ®Ø¯Ø§Ù… ApiConfig
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': _emailController.text.trim(),
@@ -3539,10 +3670,153 @@ class BackgroundWaveClipper extends CustomClipper<Path> {
 FILE: lib\screens\Profile\about_you_screen.dart
 ===========================
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'edit_profile_screen.dart';
+import '../../config/api_config.dart'; // Ø¥Ø¶Ø§ÙØ© import Ø§Ù„Ù€ config
 
-class AboutYouScreen extends StatelessWidget {
+class AboutYouScreen extends StatefulWidget {
   const AboutYouScreen({super.key});
+
+  @override
+  State<AboutYouScreen> createState() => _AboutYouScreenState();
+}
+
+class _AboutYouScreenState extends State<AboutYouScreen> {
+  bool _isLoading = true;
+  String _errorMessage = '';
+  
+  // Ù…ØªØºÙŠØ±Ø§Øª Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª
+  String _fullName = '';
+  String _title = '';
+  String _college = '';
+  String _academicYear = '';
+  String _age = '';
+  String _email = '';
+  int _studentId = 0;
+  
+  static const Color primaryColor = Color(0xFF67C2B9);
+  // ØªÙ… Ø­Ø°Ù static const String baseUrl
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      _email = prefs.getString('user_email') ?? '';
+      
+      if (token == null) {
+        setState(() {
+          _errorMessage = 'Ø§Ù„Ø±Ø¬Ø§Ø¡ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø£ÙˆÙ„Ø§Ù‹';
+          _isLoading = false;
+        });
+        return;
+      }
+      
+      // Ø£ÙˆÙ„Ø§Ù‹: Ø¬Ù„Ø¨ Ø§Ù„Ù€ studentId Ù…Ù† API Ø§Ù„Ø·Ù„Ø§Ø¨
+      // Ù…Ù„Ø§Ø­Ø¸Ø©: Ù‚Ø¯ ØªØ­ØªØ§Ø¬ Ø¥Ù„Ù‰ ØªØ¹Ø¯ÙŠÙ„ Ù‡Ø°Ø§ Ø§Ù„Ù€ endpoint Ø­Ø³Ø¨ Ø§Ù„Ù€ API Ø§Ù„Ù…ØªØ§Ø­ Ù„Ø¯ÙŠÙƒ
+      final studentResponse = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/api/Students/my-id'), // Ø§Ø³ØªØ®Ø¯Ø§Ù… ApiConfig
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      
+      int studentId = 0;
+      if (studentResponse.statusCode == 200) {
+        final studentData = jsonDecode(studentResponse.body);
+        studentId = studentData['id'] ?? 0;
+        _studentId = studentId;
+        // Ø­ÙØ¸ Ø§Ù„Ù€ studentId ÙÙŠ SharedPreferences Ù„Ù„Ø§Ø³ØªØ®Ø¯Ø§Ù… Ù„Ø§Ø­Ù‚Ø§Ù‹
+        await prefs.setInt('student_id', studentId);
+      } else {
+        // Ù…Ø­Ø§ÙˆÙ„Ø© Ø¬Ù„Ø¨ Ø§Ù„Ù€ studentId Ù…Ù† SharedPreferences Ø¥Ø°Ø§ ÙƒØ§Ù† Ù…ÙˆØ¬ÙˆØ¯Ø§Ù‹
+        studentId = prefs.getInt('student_id') ?? 0;
+        _studentId = studentId;
+      }
+      
+      if (studentId == 0) {
+        setState(() {
+          _errorMessage = 'Ù„Ù… ÙŠØªÙ… Ø§Ù„Ø¹Ø«ÙˆØ± Ø¹Ù„Ù‰ Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø·Ø§Ù„Ø¨';
+          _isLoading = false;
+        });
+        return;
+      }
+      
+      // Ø«Ø§Ù†ÙŠØ§Ù‹: Ø¬Ù„Ø¨ Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ Ø¨Ø§Ø³ØªØ®Ø¯Ø§Ù… Ø§Ù„Ù€ studentId
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/api/Profile/student/prfile?studentId=$studentId'), // Ø§Ø³ØªØ®Ø¯Ø§Ù… ApiConfig
+        headers: {
+          'Content-Type': 'application/json',   
+          'Authorization': 'Bearer $token',
+        },
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          _fullName = data['name'] ?? data['fullName'] ?? 'ØºÙŠØ± Ù…Ø­Ø¯Ø¯';
+          _title = data['title'] ?? data['jobTitle'] ?? 'Ø·Ø§Ù„Ø¨/Ø©';
+          _college = data['college'] ?? data['department'] ?? 'Ø¹Ù„ÙˆÙ… Ø§Ù„Ø­Ø§Ø³Ø¨';
+          _academicYear = _getAcademicYearString(data['academicYear']);
+          _age = data['age'] != null ? '${data['age']} Ø³Ù†Ø©' : 'ØºÙŠØ± Ù…Ø­Ø¯Ø¯';
+          _email = data['email'] ?? _email;
+          _errorMessage = '';
+          _isLoading = false;
+        });
+        print('Student ID: $_studentId');
+      } else if (response.statusCode == 404) {
+        // Ø¥Ø°Ø§ Ù„Ù… ÙŠØªÙ… Ø§Ù„Ø¹Ø«ÙˆØ± Ø¹Ù„Ù‰ Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠØŒ Ù†Ø³ØªØ®Ø¯Ù… Ø¨ÙŠØ§Ù†Ø§Øª Ø§ÙØªØ±Ø§Ø¶ÙŠØ©
+        setState(() {
+          _fullName = 'Engi Eid';
+          _title = 'Computer Science Student';
+          _college = 'Computer Science';
+          _academicYear = 'Third Year';
+          _age = '20 Years';
+          _isLoading = false;
+          _errorMessage = 'Ù„Ù… ÙŠØªÙ… Ø§Ù„Ø¹Ø«ÙˆØ± Ø¹Ù„Ù‰ Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ';
+        });
+      } else {
+        setState(() {
+          _fullName = 'Engi Eid';
+          _title = 'Computer Science Student';
+          _college = 'Computer Science';
+          _academicYear = 'Third Year';
+          _age = '20 Years';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _fullName = 'Engi Eid';
+        _title = 'Computer Science Student';
+        _college = 'Computer Science';
+        _academicYear = 'Third Year';
+        _age = '20 Years';
+        _isLoading = false;
+        _errorMessage = 'Ø§Ø³ØªØ®Ø¯Ø§Ù… Ø¨ÙŠØ§Ù†Ø§Øª Ù…Ø­Ù„ÙŠØ© Ù…Ø¤Ù‚ØªØ©: ${e.toString()}';
+      });
+    }
+  }
+
+  String _getAcademicYearString(int? year) {
+    switch (year) {
+      case 1: return 'First Year';
+      case 2: return 'Second Year';
+      case 3: return 'Third Year';
+      case 4: return 'Fourth Year';
+      default: return 'Third Year';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -3557,156 +3831,178 @@ class AboutYouScreen extends StatelessWidget {
             fontSize: 20,
           ),
         ),
-        backgroundColor: const Color(0xFF67C2B9),
+        backgroundColor: primaryColor,
         elevation: 0,
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Ø§Ù„Ø¬Ø²Ø¡ Ø§Ù„Ø¹Ù„ÙˆÙŠ Ø§Ù„Ø£Ø®Ø¶Ø±
-            Stack(
-              alignment: Alignment.center,
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  height: 90,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF67C2B9),
-                    borderRadius: BorderRadius.only(
-                      bottomLeft: Radius.circular(60),
-                      bottomRight: Radius.circular(60),
-                    ),
-                  ),
+        actions: [
+          if (_errorMessage.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Center(
+                child: Text(
+                  _errorMessage,
+                  style: const TextStyle(fontSize: 10, color: Colors.white70),
                 ),
-                // ØµÙˆØ±Ø© Ø§Ù„Ø¨Ø±ÙˆÙØ§ÙŠÙ„
-                Positioned(
-                  top: 15,
-                  child: Container(
-                    padding: const EdgeInsets.all(5),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 20,
-                          offset: Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: const CircleAvatar(
-                      radius: 75,
-                      backgroundColor: Colors.white,
-                      backgroundImage: AssetImage('images/profile.jpeg'),
-                    ),
-                  ),
+              ),
+            ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _loadProfile,
+        child: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(color: primaryColor),
+              )
+            : SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  children: [
+                    _buildHeader(),
+                    const SizedBox(height: 95),
+                    _buildNameAndTitle(),
+                    const SizedBox(height: 35),
+                    _buildInfoCard(),
+                    const SizedBox(height: 40),
+                    _buildEditButton(),
+                    const SizedBox(height: 30),
+                  ],
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Stack(
+      alignment: Alignment.center,
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          height: 90,
+          decoration: const BoxDecoration(
+            color: primaryColor,
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(60),
+              bottomRight: Radius.circular(60),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 15,
+          child: Container(
+            padding: const EdgeInsets.all(5),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 20,
+                  offset: Offset(0, 10),
                 ),
               ],
             ),
-
-            const SizedBox(height: 95),
-
-            // Ø§Ù„Ø§Ø³Ù… ÙˆØ§Ù„Ù„Ù‚Ø¨
-            const Text(
-              'Engi Eid',
-              style: TextStyle(
-                fontSize: 30,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2D2D2D),
-                letterSpacing: 0.8,
-              ),
+            child: const CircleAvatar(
+              radius: 75,
+              backgroundColor: Colors.white,
+              backgroundImage: AssetImage('images/profile.jpeg'),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Computer Science Student',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-                fontWeight: FontWeight.w500,
-              ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNameAndTitle() {
+    return Column(
+      children: [
+        Text(
+          _fullName,
+          style: const TextStyle(
+            fontSize: 30,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF2D2D2D),
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _title,
+          style: const TextStyle(
+            fontSize: 16,
+            color: Colors.grey,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoCard() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 25),
+      child: Container(
+        padding: const EdgeInsets.all(25),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              blurRadius: 20,
+              spreadRadius: 5,
             ),
-
-            const SizedBox(height: 35),
-
-            // ÙƒØ§Ø±Øª Ø§Ù„Ù…Ø¹Ù„ÙˆÙ…Ø§Øª
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 25),
-              child: Container(
-                padding: const EdgeInsets.all(25),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.1),
-                      blurRadius: 20,
-                      spreadRadius: 5,
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    _buildInfoRow(
-                      Icons.school_rounded,
-                      'College',
-                      'Computer Science',
-                    ),
-                    _buildDivider(),
-                    _buildInfoRow(
-                      Icons.auto_awesome_mosaic_rounded,
-                      'Academic Year',
-                      'Third Year',
-                    ),
-                    _buildDivider(),
-                    _buildInfoRow(Icons.cake_rounded, 'Age', '20 Years'),
-                    _buildDivider(),
-                    _buildInfoRow(
-                      Icons.alternate_email_rounded,
-                      'Email',
-                      'engi@example.com',
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 40),
-
-            // Ø²Ø± Ø§Ù„ØªØ¹Ø¯ÙŠÙ„
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40),
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const EditProfileScreen(),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF67C2B9),
-                  minimumSize: const Size(double.infinity, 55),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  elevation: 5,
-                  shadowColor: const Color(0xFF67C2B9).withOpacity(0.4),
-                ),
-                child: const Text(
-                  'Edit Profile',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 30),
           ],
+        ),
+        child: Column(
+          children: [
+            _buildInfoRow(Icons.school_rounded, 'College', _college),
+            _buildDivider(),
+            _buildInfoRow(Icons.auto_awesome_mosaic_rounded, 'Academic Year', _academicYear),
+            _buildDivider(),
+            _buildInfoRow(Icons.cake_rounded, 'Age', _age),
+            _buildDivider(),
+            _buildInfoRow(Icons.alternate_email_rounded, 'Email', _email),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEditButton() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 40),
+      child: ElevatedButton(
+        onPressed: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => EditProfileScreen(
+                studentId: _studentId,
+              ),
+            ),
+          );
+          if (result == true) {
+            _loadProfile();
+          }
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryColor,
+          minimumSize: const Size(double.infinity, 55),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          elevation: 5,
+          shadowColor: primaryColor.withOpacity(0.4),
+        ),
+        child: const Text(
+          'Edit Profile',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );
@@ -3725,10 +4021,10 @@ class AboutYouScreen extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color(0xFF67C2B9).withOpacity(0.1),
+            color: primaryColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: const Color(0xFF67C2B9), size: 24),
+          child: Icon(icon, color: primaryColor, size: 24),
         ),
         const SizedBox(width: 20),
         Column(
@@ -3759,49 +4055,210 @@ class AboutYouScreen extends StatelessWidget {
 }
 
 
-
 ===========================
 FILE: lib\screens\Profile\edit_profile_screen.dart
 ===========================
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../../config/api_config.dart'; // Ø¥Ø¶Ø§ÙØ© import Ø§Ù„Ù€ config
 
 class EditProfileScreen extends StatefulWidget {
-  const EditProfileScreen({super.key});
+  final int? studentId;
+  
+  const EditProfileScreen({
+    super.key,
+    this.studentId,
+  });
 
   @override
   State<EditProfileScreen> createState() => _EditProfileScreenState();
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  // ØªØ¹Ø±ÙŠÙ Ø§Ù„Ù€ Controllers Ù„Ù„ØªØ­ÙƒÙ… ÙÙŠ Ø§Ù„Ù†ØµÙˆØµ ÙˆØ¥Ø±Ø³Ø§Ù„Ù‡Ø§ Ù„Ù„Ù€ API
-  final _nameController = TextEditingController(text: 'Engi Eid');
-  final _jobController = TextEditingController(text: 'Computer Science Student');
-  final _collegeController = TextEditingController(text: 'Computer Science');
-  final _ageController = TextEditingController(text: '20');
-  final _emailController = TextEditingController(text: 'engi@example.com');
+  // ØªØ¹Ø±ÙŠÙ Ø§Ù„Ù€ Controllers
+  final _nameController = TextEditingController();
+  final _jobController = TextEditingController();
+  final _collegeController = TextEditingController();
+  final _ageController = TextEditingController();
+  final _emailController = TextEditingController();
+  
+  bool _isLoading = true;
+  bool _isSaving = false;
+  int _studentId = 0;
+  String _token = '';
 
   static const Color primaryColor = Color(0xFF67C2B9);
+  // ØªÙ… Ø­Ø°Ù static const String baseUrl
 
-  // Ø¯Ø§Ù„Ø© ÙˆÙ‡Ù…ÙŠØ© Ù„Ù…Ø­Ø§ÙƒØ§Ø© Ø§Ø³ØªØ¯Ø¹Ø§Ø¡ Ø§Ù„Ù€ API
-  Future<void> _updateProfileOnAPI() async {
-    // Ù‡Ù†Ø§ Ø³ÙŠØªÙ… ÙˆØ¶Ø¹ ÙƒÙˆØ¯ Ø§Ù„Ù€ http post
-    // Ù…Ø«Ø§Ù„:
-    // var response = await http.post(Uri.parse('your-api-url'), body: {...});
-    
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator(color: primaryColor)),
-    );
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentProfile();
+  }
 
-    await Future.delayed(const Duration(seconds: 2)); // Ù…Ø­Ø§ÙƒØ§Ø© ÙˆÙ‚Øª Ø§Ù„Ø´Ø¨ÙƒØ©
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _jobController.dispose();
+    _collegeController.dispose();
+    _ageController.dispose();
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  // Ø¬Ù„Ø¨ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø­Ø§Ù„ÙŠØ© Ù…Ù† API
+  Future<void> _loadCurrentProfile() async {
+    setState(() => _isLoading = true);
     
-    if (mounted) {
-      Navigator.pop(context); // Ø¥ØºÙ„Ø§Ù‚ Ø§Ù„Ù€ Loading
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile Updated Successfully!'), backgroundColor: primaryColor),
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString('auth_token') ?? '';
+      final email = prefs.getString('user_email') ?? '';
+      
+      if (_token.isEmpty) {
+        _showError('Ø§Ù„Ø±Ø¬Ø§Ø¡ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø£ÙˆÙ„Ø§Ù‹');
+        setState(() => _isLoading = false);
+        return;
+      }
+      
+      // Ø§Ø³ØªØ®Ø¯Ø§Ù… studentId Ù…Ù† widget Ø¥Ø°Ø§ ÙƒØ§Ù† Ù…ÙˆØ¬ÙˆØ¯Ø§Ù‹
+      int studentId = widget.studentId ?? 0;
+      
+      // Ø¥Ø°Ø§ Ù„Ù… ÙŠÙƒÙ† Ù‡Ù†Ø§Ùƒ studentIdØŒ Ù†Ø­Ø§ÙˆÙ„ Ø¬Ù„Ø¨Ù‡Ø§ Ù…Ù† SharedPreferences Ø£Ùˆ API
+      if (studentId == 0) {
+        studentId = prefs.getInt('student_id') ?? 0;
+        _studentId = studentId;
+      } else {
+        _studentId = studentId;
+      }
+      
+      // Ø¬Ù„Ø¨ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª Ù…Ù† API Ø¨Ø§Ø³ØªØ®Ø¯Ø§Ù… Ø§Ù„Ø±Ø§Ø¨Ø· Ø§Ù„ØµØ­ÙŠØ­
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/api/Profile/student/prfile?studentId=$_studentId'), // Ø§Ø³ØªØ®Ø¯Ø§Ù… ApiConfig
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
       );
-      Navigator.pop(context); // Ø§Ù„Ø¹ÙˆØ¯Ø© Ù„Ù„ØµÙØ­Ø© Ø§Ù„Ø³Ø§Ø¨Ù‚Ø©
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          _nameController.text = data['name'] ?? data['fullName'] ?? 'Engi Eid';
+          _jobController.text = data['title'] ?? data['jobTitle'] ?? 'Computer Science Student';
+          _collegeController.text = data['college'] ?? data['department'] ?? 'Computer Science';
+          _ageController.text = data['age']?.toString() ?? '20';
+          _emailController.text = data['email'] ?? email;
+          _isLoading = false;
+        });
+      } else if (response.statusCode == 404) {
+        // Ø¥Ø°Ø§ Ù„Ù… ÙŠØªÙ… Ø§Ù„Ø¹Ø«ÙˆØ± Ø¹Ù„Ù‰ Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠØŒ Ù†Ø³ØªØ®Ø¯Ù… Ø¨ÙŠØ§Ù†Ø§Øª Ø§ÙØªØ±Ø§Ø¶ÙŠØ©
+        setState(() {
+          _nameController.text = 'Engi Eid';
+          _jobController.text = 'Computer Science Student';
+          _collegeController.text = 'Computer Science';
+          _ageController.text = '20';
+          _emailController.text = email;
+          _isLoading = false;
+        });
+        _showError('Ù„Ù… ÙŠØªÙ… Ø§Ù„Ø¹Ø«ÙˆØ± Ø¹Ù„Ù‰ Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ');
+      } else {
+        // Ø¨ÙŠØ§Ù†Ø§Øª Ø§ÙØªØ±Ø§Ø¶ÙŠØ© ÙÙŠ Ø­Ø§Ù„ ÙØ´Ù„ Ø§Ù„Ø§ØªØµØ§Ù„
+        setState(() {
+          _nameController.text = 'Engi Eid';
+          _jobController.text = 'Computer Science Student';
+          _collegeController.text = 'Computer Science';
+          _ageController.text = '20';
+          _emailController.text = email;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showError('Ø®Ø·Ø£ ÙÙŠ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª: $e');
+    }
+  }
+
+  // ØªØ­Ø¯ÙŠØ« Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ
+  Future<void> _updateProfile() async {
+    // Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† Ø§Ù„Ù…Ø¯Ø®Ù„Ø§Øª
+    if (_nameController.text.isEmpty) {
+      _showError('Ø§Ù„Ø±Ø¬Ø§Ø¡ Ø¥Ø¯Ø®Ø§Ù„ Ø§Ù„Ø§Ø³Ù…');
+      return;
+    }
+    if (_emailController.text.isEmpty || !_emailController.text.contains('@')) {
+      _showError('Ø§Ù„Ø±Ø¬Ø§Ø¡ Ø¥Ø¯Ø®Ø§Ù„ Ø¨Ø±ÙŠØ¯ Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ ØµØ­ÙŠØ­');
+      return;
+    }
+    
+    setState(() => _isSaving = true);
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token') ?? _token;
+      
+      if (token.isEmpty) {
+        _showError('Ø§Ù„Ø±Ø¬Ø§Ø¡ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø£ÙˆÙ„Ø§Ù‹');
+        setState(() => _isSaving = false);
+        return;
+      }
+      
+      // ØªØ­Ø¯ÙŠØ« Ø¨Ø§Ø³ØªØ®Ø¯Ø§Ù… Ø§Ù„Ø±Ø§Ø¨Ø· Ø§Ù„ØµØ­ÙŠØ­
+      final response = await http.put(
+        Uri.parse('${ApiConfig.baseUrl}/api/Profile/update/student/$_studentId'), // Ø§Ø³ØªØ®Ø¯Ø§Ù… ApiConfig
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'id': _studentId,
+          'name': _nameController.text.trim(),
+          'age': int.tryParse(_ageController.text.trim()) ?? 20,
+          'gender': 'Not specified',
+          'university': _collegeController.text.trim(),
+          'department': _collegeController.text.trim(),
+          'academicYear': 3,
+          'currentGPA': 3.0,
+          'isActive': true,
+          'hasScolarship': false,
+          'total_Exercise_Score': 0,
+        }),
+      );
+      
+      if (response.statusCode == 200) {
+        // Ø­ÙØ¸ Ø§Ù„Ø¥ÙŠÙ…ÙŠÙ„ Ø§Ù„Ø¬Ø¯ÙŠØ¯ ÙÙŠ SharedPreferences
+        await prefs.setString('user_email', _emailController.text.trim());
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile Updated Successfully!'),
+              backgroundColor: primaryColor,
+            ),
+          );
+          Navigator.pop(context, true); // Ø§Ù„Ø¹ÙˆØ¯Ø© Ù…Ø¹ true ÙŠØ¹Ù†ÙŠ ØªÙ… Ø§Ù„ØªØ­Ø¯ÙŠØ«
+        }
+      } else {
+        final errorData = jsonDecode(response.body);
+        _showError(errorData.toString());
+      }
+    } catch (e) {
+      _showError('Ø®Ø·Ø£ ÙÙŠ Ø§Ù„Ø§ØªØµØ§Ù„: $e');
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -3810,45 +4267,79 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Edit Profile', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Edit Profile',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: primaryColor,
         elevation: 0,
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(25),
-        child: Column(
-          children: [
-            _buildEditField(Icons.person, 'Full Name', _nameController),
-            _buildEditField(Icons.work, 'Title', _jobController),
-            _buildEditField(Icons.school, 'College', _collegeController),
-            _buildEditField(Icons.cake, 'Age', _ageController, isNumber: true),
-            _buildEditField(Icons.email, 'Email', _emailController),
-            const SizedBox(height: 40),
-            
-            // Ø²Ø± Ø§Ù„Ø­ÙØ¸ Ø§Ù„Ù…Ø±ØªØ¨Ø· Ø¨Ø§Ù„Ù€ API
-            ElevatedButton(
-              onPressed: _updateProfileOnAPI,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                minimumSize: const Size(double.infinity, 55),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: primaryColor),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(25),
+              child: Column(
+                children: [
+                  _buildEditField(Icons.person, 'Full Name', _nameController),
+                  _buildEditField(Icons.work, 'Title', _jobController),
+                  _buildEditField(Icons.school, 'College/University', _collegeController),
+                  _buildEditField(Icons.cake, 'Age', _ageController, isNumber: true),
+                  _buildEditField(Icons.email, 'Email', _emailController, isEmail: true),
+                  const SizedBox(height: 40),
+                  
+                  ElevatedButton(
+                    onPressed: _isSaving ? null : _updateProfile,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryColor,
+                      minimumSize: const Size(double.infinity, 55),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'Save Changes',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
+                ],
               ),
-              child: const Text('Save Changes', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
             ),
-          ],
-        ),
-      ),
     );
   }
 
-  Widget _buildEditField(IconData icon, String label, TextEditingController controller, {bool isNumber = false}) {
+  Widget _buildEditField(
+    IconData icon,
+    String label,
+    TextEditingController controller, {
+    bool isNumber = false,
+    bool isEmail = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: TextField(
         controller: controller,
-        keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+        keyboardType: isNumber
+            ? TextInputType.number
+            : isEmail
+                ? TextInputType.emailAddress
+                : TextInputType.text,
         decoration: InputDecoration(
           labelText: label,
           labelStyle: const TextStyle(color: primaryColor),
@@ -3879,6 +4370,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'Home/home_screen.dart';
 import 'login_screen.dart';
+import '../config/api_config.dart'; // Ø¥Ø¶Ø§ÙØ© import Ø§Ù„Ù€ config
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -3903,7 +4395,7 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _isLoading = false;
 
   static const Color primaryColor = Color(0xFF67C2B9);
-  static const String baseUrl = 'https://localhost:7057'; // ØºÙŠØ± Ø§Ù„Ø±Ø§Ø¨Ø· Ø­Ø³Ø¨ Ø¥Ø¹Ø¯Ø§Ø¯Ø§ØªÙƒ
+  // ØªÙ… Ø­Ø°Ù static const String baseUrl
 
   @override
   void dispose() {
@@ -3926,7 +4418,7 @@ class _SignupScreenState extends State<SignupScreen> {
       final userName = '${_firstNameController.text.trim()}_${_lastNameController.text.trim()}';
       
       final response = await http.post(
-        Uri.parse('$baseUrl/api/Auth/register'),
+        Uri.parse('${ApiConfig.baseUrl}/api/Auth/register'), // Ø§Ø³ØªØ®Ø¯Ø§Ù… ApiConfig
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'firstName': _firstNameController.text.trim(),
@@ -4766,10 +5258,11 @@ FILE: lib\services\api_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/api_config.dart';
 
 class ApiService {
-  static const String baseUrl = 'https://localhost:7057'; // ØºÙŠØ± Ø§Ù„Ø±Ø§Ø¨Ø· Ø­Ø³Ø¨ Ø¥Ø¹Ø¯Ø§Ø¯Ø§ØªÙƒ
-
+  // ==================== Ø¯ÙˆØ§Ù„ Ù…Ø³Ø§Ø¹Ø¯Ø© ====================
+  
   Future<Map<String, String>> _getHeaders() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
@@ -4779,24 +5272,59 @@ class ApiService {
     };
   }
 
+  Map<String, dynamic> _handleResponse(http.Response response) {
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (response.body.isEmpty) {
+        return {};
+      }
+      return jsonDecode(response.body);
+    } else if (response.statusCode == 401) {
+      throw Exception('ØºÙŠØ± Ù…ØµØ±Ø­ Ø¨Ù‡ - ÙŠØ±Ø¬Ù‰ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ù…Ø±Ø© Ø£Ø®Ø±Ù‰');
+    } else if (response.statusCode == 404) {
+      throw Exception('Ø§Ù„Ø¹Ù†ÙˆØ§Ù† ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯ - ØªØ­Ù‚Ù‚ Ù…Ù† ØµØ­Ø© Ø§Ù„Ø±Ø§Ø¨Ø·');
+    } else if (response.statusCode == 500) {
+      throw Exception('Ø®Ø·Ø£ ÙÙŠ Ø§Ù„Ø®Ø§Ø¯Ù… Ø§Ù„Ø¯Ø§Ø®Ù„ÙŠ');
+    } else {
+      String errorMessage = 'Ø­Ø¯Ø« Ø®Ø·Ø£ ØºÙŠØ± Ù…ØªÙˆÙ‚Ø¹ (${response.statusCode})';
+      try {
+        final errorBody = jsonDecode(response.body);
+        if (errorBody['message'] != null) {
+          errorMessage = errorBody['message'];
+        }
+      } catch (e) {
+        // ØªØ¬Ø§Ù‡Ù„ Ø¥Ø°Ø§ Ù„Ù… ÙŠÙƒÙ† Ø§Ù„Ø±Ø¯ Ø¨ØµÙŠØºØ© JSON
+      }
+      throw Exception(errorMessage);
+    }
+  }
+
   // ==================== Ø§Ù„Ù…ØµØ§Ø¯Ù‚Ø© ====================
   
   Future<Map<String, dynamic>> login(String email, String password) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/api/Auth/login'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': email, 'password': password}),
-    );
-    
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      // Ø­ÙØ¸ Ø§Ù„ØªÙˆÙƒÙ†
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', data['token']);
-      await prefs.setStringList('roles', List<String>.from(data['roles']));
-      return data;
-    } else {
-      throw Exception('ÙØ´Ù„ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„: ${response.body}');
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/Auth/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email, 
+          'password': password,
+          'rememberMe': false
+        }),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        // Ø­ÙØ¸ Ø§Ù„ØªÙˆÙƒÙ†
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('auth_token', data['token']);
+        await prefs.setStringList('roles', List<String>.from(data['roles']));
+        return data;
+      } else {
+        throw Exception('ÙØ´Ù„ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„: ${response.body}');
+      }
+    } catch (e) {
+      print('âŒ Login error: $e');
+      throw Exception('ÙØ´Ù„ Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ø®Ø§Ø¯Ù…: $e');
     }
   }
 
@@ -4808,29 +5336,34 @@ class ApiService {
     required String userName,
     String? address,
   }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/api/Auth/register'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'firstName': firstName,
-        'lastName': lastName,
-        'universityEmail': email,
-        'password': password,
-        'confirmPassword': password,
-        'userName': userName,
-        'address': address ?? '',
-        'isAgree': true,
-        'rememberMe': false,
-      }),
-    );
-    
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', data['token']);
-      return data;
-    } else {
-      throw Exception('ÙØ´Ù„ Ø§Ù„ØªØ³Ø¬ÙŠÙ„: ${response.body}');
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/Auth/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'firstName': firstName,
+          'lastName': lastName,
+          'universityEmail': email,
+          'password': password,
+          'confirmPassword': password,
+          'userName': userName,
+          'address': address ?? '',
+          'isAgree': true,
+          'rememberMe': false,
+        }),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('auth_token', data['token']);
+        return data;
+      } else {
+        throw Exception('ÙØ´Ù„ Ø§Ù„ØªØ³Ø¬ÙŠÙ„: ${response.body}');
+      }
+    } catch (e) {
+      print('âŒ Register error: $e');
+      throw Exception('ÙØ´Ù„ Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ø®Ø§Ø¯Ù…: $e');
     }
   }
 
@@ -4843,15 +5376,20 @@ class ApiService {
   // ==================== Ø§Ù„Ø£Ù‡Ø¯Ø§Ù ====================
   
   Future<List<dynamic>> getMyGoals() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/api/Goals/my-goals'),
-      headers: await _getHeaders(),
-    );
-    
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/api/Goals/my-goals'),
+        headers: await _getHeaders(),
+      );
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      return [];
+    } catch (e) {
+      print('âŒ Get goals error: $e');
+      return [];
     }
-    return [];
   }
 
   Future<Map<String, dynamic>> createGoal({
@@ -4860,84 +5398,122 @@ class ApiService {
     DateTime? deadline,
     required List<String> items,
   }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/api/Goals/add'),
-      headers: await _getHeaders(),
-      body: jsonEncode({
-        'title': title,
-        'priority': priority,
-        'deadline': deadline?.toIso8601String(),
-        'items': items,
-      }),
-    );
-    
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/Goals/add'),
+        headers: await _getHeaders(),
+        body: jsonEncode({
+          'title': title,
+          'priority': priority,
+          'deadline': deadline?.toIso8601String(),
+          'items': items,
+        }),
+      );
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      throw Exception('ÙØ´Ù„ Ø¥Ø¶Ø§ÙØ© Ø§Ù„Ù‡Ø¯Ù: ${response.body}');
+    } catch (e) {
+      print('âŒ Create goal error: $e');
+      throw Exception('ÙØ´Ù„ Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ø®Ø§Ø¯Ù…: $e');
     }
-    throw Exception('ÙØ´Ù„ Ø¥Ø¶Ø§ÙØ© Ø§Ù„Ù‡Ø¯Ù: ${response.body}');
   }
 
   Future<void> toggleItem(int itemId, int goalId) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/api/Goals/toggle-item/$itemId?goalId=$goalId'),
-      headers: await _getHeaders(),
-    );
-    
-    if (response.statusCode != 204) {
-      throw Exception('ÙØ´Ù„ ØªØ­Ø¯ÙŠØ« Ø§Ù„Ù…Ù‡Ù…Ø©');
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/Goals/toggle-item/$itemId?goalId=$goalId'),
+        headers: await _getHeaders(),
+      );
+      
+      if (response.statusCode != 204 && response.statusCode != 200) {
+        throw Exception('ÙØ´Ù„ ØªØ­Ø¯ÙŠØ« Ø§Ù„Ù…Ù‡Ù…Ø©');
+      }
+    } catch (e) {
+      print('âŒ Toggle item error: $e');
+      throw Exception('ÙØ´Ù„ Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ø®Ø§Ø¯Ù…: $e');
     }
   }
 
   Future<void> deleteGoal(int goalId) async {
-    final response = await http.delete(
-      Uri.parse('$baseUrl/api/Goals/delete/$goalId'),
-      headers: await _getHeaders(),
-    );
-    
-    if (response.statusCode != 204) {
-      throw Exception('ÙØ´Ù„ Ø­Ø°Ù Ø§Ù„Ù‡Ø¯Ù');
+    try {
+      final response = await http.delete(
+        Uri.parse('${ApiConfig.baseUrl}/api/Goals/delete/$goalId'),
+        headers: await _getHeaders(),
+      );
+      
+      if (response.statusCode != 204 && response.statusCode != 200) {
+        throw Exception('ÙØ´Ù„ Ø­Ø°Ù Ø§Ù„Ù‡Ø¯Ù');
+      }
+    } catch (e) {
+      print('âŒ Delete goal error: $e');
+      throw Exception('ÙØ´Ù„ Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ø®Ø§Ø¯Ù…: $e');
     }
   }
 
   // ==================== Ø§Ù„ØªÙ…Ø§Ø±ÙŠÙ† ====================
   
   Future<List<dynamic>> getAllExercises() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/api/Exercises/all'),
-      headers: await _getHeaders(),
-    );
-    
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/api/Exercises/all'),
+        headers: await _getHeaders(),
+      );
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      return [];
+    } catch (e) {
+      print('âŒ Get exercises error: $e');
+      return [];
     }
-    return [];
   }
 
   Future<int> completeExercise() async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/api/Exercises/complete'),
-      headers: await _getHeaders(),
-    );
-    
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data; // Ø¥Ø±Ø¬Ø§Ø¹ Ø§Ù„Ù†ØªÙŠØ¬Ø© (Total_Exercise_Score Ø§Ù„Ø¬Ø¯ÙŠØ¯)
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/Exercises/complete'),
+        headers: await _getHeaders(),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        // Ø§Ø³ØªØ®Ø±Ø§Ø¬ Ø§Ù„Ø±Ù‚Ù… Ù…Ù† Ø§Ù„Ø±Ø³Ø§Ù„Ø© (Ù…Ø«Ø§Ù„: "Updated successfully: 15")
+        final String message = data.toString();
+        final RegExp regex = RegExp(r'(\d+)$');
+        final match = regex.firstMatch(message);
+        if (match != null) {
+          return int.parse(match.group(0)!);
+        }
+        return 0;
+      }
+      throw Exception('ÙØ´Ù„ Ø¥ÙƒÙ…Ø§Ù„ Ø§Ù„ØªÙ…Ø±ÙŠÙ†');
+    } catch (e) {
+      print('âŒ Complete exercise error: $e');
+      throw Exception('ÙØ´Ù„ Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ø®Ø§Ø¯Ù…: $e');
     }
-    throw Exception('ÙØ´Ù„ Ø¥ÙƒÙ…Ø§Ù„ Ø§Ù„ØªÙ…Ø±ÙŠÙ†');
   }
 
   // ==================== Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ ====================
   
+  // âœ… ØªÙ… ØªØµØ­ÙŠØ­ Ø§Ù„Ù…Ø³Ø§Ø± Ù…Ù† 'prfile' Ø¥Ù„Ù‰ 'profile'
   Future<Map<String, dynamic>> getStudentProfile(int studentId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/api/Profile/student/prfile?studentId=$studentId'),
-      headers: await _getHeaders(),
-    );
-    
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/api/Profile/student/profile?studentId=$studentId'),
+        headers: await _getHeaders(),
+      );
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      throw Exception('ÙØ´Ù„ Ø¬Ù„Ø¨ Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ');
+    } catch (e) {
+      print('âŒ Get profile error: $e');
+      throw Exception('ÙØ´Ù„ Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ø®Ø§Ø¯Ù…: $e');
     }
-    throw Exception('ÙØ´Ù„ Ø¬Ù„Ø¨ Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ');
   }
 
   Future<Map<String, dynamic>> updateStudentProfile(
@@ -4951,41 +5527,114 @@ class ApiService {
     required double currentGPA,
     required String phoneNumber,
   }) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl/api/Profile/update/student/$studentId'),
-      headers: await _getHeaders(),
-      body: jsonEncode({
-        'id': studentId,
-        'name': name,
-        'age': age,
-        'gender': gender,
-        'university': university,
-        'department': department,
-        'academicYear': academicYear,
-        'currentGPA': currentGPA,
-        'user': {'phoneNumber': phoneNumber},
-      }),
-    );
-    
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+    try {
+      final response = await http.put(
+        Uri.parse('${ApiConfig.baseUrl}/api/Profile/update/student/$studentId'),
+        headers: await _getHeaders(),
+        body: jsonEncode({
+          'id': studentId,
+          'name': name,
+          'age': age,
+          'gender': gender,
+          'university': university,
+          'department': department,
+          'academicYear': academicYear,
+          'currentGPA': currentGPA,
+          'user': {'phoneNumber': phoneNumber},
+        }),
+      );
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      throw Exception('ÙØ´Ù„ ØªØ­Ø¯ÙŠØ« Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ');
+    } catch (e) {
+      print('âŒ Update profile error: $e');
+      throw Exception('ÙØ´Ù„ Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ø®Ø§Ø¯Ù…: $e');
     }
-    throw Exception('ÙØ´Ù„ ØªØ­Ø¯ÙŠØ« Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ');
   }
 
   Future<void> changePassword(String currentPassword, String newPassword) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/api/Profile/change-password'),
-      headers: await _getHeaders(),
-      body: jsonEncode({
-        'currentPassword': currentPassword,
-        'newPassword': newPassword,
-      }),
-    );
-    
-    if (response.statusCode != 200) {
-      throw Exception('ÙØ´Ù„ ØªØºÙŠÙŠØ± ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±');
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/Profile/change-password'),
+        headers: await _getHeaders(),
+        body: jsonEncode({
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        }),
+      );
+      
+      if (response.statusCode != 200) {
+        throw Exception('ÙØ´Ù„ ØªØºÙŠÙŠØ± ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±');
+      }
+    } catch (e) {
+      print('âŒ Change password error: $e');
+      throw Exception('ÙØ´Ù„ Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ø®Ø§Ø¯Ù…: $e');
     }
+  }
+
+  // ==================== Ø§Ù„Ø§Ø³ØªØ¨ÙŠØ§Ù†Ø§Øª (Surveys) ====================
+  
+  Future<Map<String, dynamic>> getSurvey(int surveyId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/api/Survey?id=$surveyId'),
+        headers: await _getHeaders(),
+      );
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      throw Exception('ÙØ´Ù„ Ø¬Ù„Ø¨ Ø§Ù„Ø§Ø³ØªØ¨ÙŠØ§Ù†');
+    } catch (e) {
+      print('âŒ Get survey error: $e');
+      throw Exception('ÙØ´Ù„ Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ø®Ø§Ø¯Ù…: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> submitSurvey({
+    required int studentId,
+    required int surveyId,
+    required List<Map<String, dynamic>> answers,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/Survey/submit'),
+        headers: await _getHeaders(),
+        body: jsonEncode({
+          'studentId': studentId,
+          'surveyId': surveyId,
+          'answers': answers,
+        }),
+      );
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      throw Exception('ÙØ´Ù„ Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„Ø§Ø³ØªØ¨ÙŠØ§Ù†');
+    } catch (e) {
+      print('âŒ Submit survey error: $e');
+      throw Exception('ÙØ´Ù„ Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ø®Ø§Ø¯Ù…: $e');
+    }
+  }
+
+  // ==================== Ø¯ÙˆØ§Ù„ Ù…Ø³Ø§Ø¹Ø¯Ø© Ø¥Ø¶Ø§ÙÙŠØ© ====================
+  
+  Future<int?> getCurrentStudentId() async {
+    try {
+      // Ù‡Ø°Ø§ ÙŠØ¹ØªÙ…Ø¯ Ø¹Ù„Ù‰ ÙƒÙŠÙÙŠØ© ØªØ®Ø²ÙŠÙ† studentId
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getInt('student_id');
+    } catch (e) {
+      print('âŒ Get student id error: $e');
+      return null;
+    }
+  }
+
+  Future<void> saveStudentId(int studentId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('student_id', studentId);
   }
 }
 

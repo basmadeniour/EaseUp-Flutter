@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../config/api_config.dart'; // إضافة import الـ config
 
 class ForgetPassword extends StatefulWidget {
   const ForgetPassword({super.key});
@@ -9,10 +12,14 @@ class ForgetPassword extends StatefulWidget {
 }
 
 class _ForgetPasswordState extends State<ForgetPassword> {
-  // 1. تعريف مفتاح الفورم والـ Controller
+  // تعريف مفتاح الفورم والـ Controller
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
+  
+  bool _isLoading = false;
+  
   static const Color primaryColor = Color(0xff64C3BF);
+  // تم حذف static const String baseUrl واستخدام ApiConfig بدلاً منه
 
   @override
   void dispose() {
@@ -20,23 +27,96 @@ class _ForgetPasswordState extends State<ForgetPassword> {
     super.dispose();
   }
 
+  // دالة إرسال طلب إعادة تعيين كلمة المرور
+  Future<void> _sendResetLink() async {
+    // التحقق من صحة الإيميل
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+    
+    setState(() => _isLoading = true);
+    
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/Auth/forgot-password'), // استخدام ApiConfig
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'email': _emailController.text.trim(),
+        }),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(data['message'] ?? 'Reset link sent to your email'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          // العودة إلى صفحة تسجيل الدخول بعد 2 ثانية
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) {
+              Navigator.pop(context);
+            }
+          });
+        }
+      } else if (response.statusCode == 400) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(data['message'] ?? 'Email not found'),
+              backgroundColor: Colors.orange,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('An error occurred. Please try again.'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Connection error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
-        // 2. لف المحتوى بـ Form
         child: Form(
           key: _formKey,
           child: Column(
             children: [
-              // تأكدي من المسار (assets أو images) حسب مشروعك
+              // الصورة العلوية
               SizedBox(
                 width: double.infinity,
-                height: 110, // يمكنكِ تعديل الارتفاع حسب الرغبة
+                height: 110,
                 child: Image.asset(
-                  'images/top.png', // تأكدي من المسار الصحيح للصورة في مشروعك
-                  fit: BoxFit.fill, // لضمان ملء العرض بالكامل
+                  'images/top.png',
+                  fit: BoxFit.fill,
                 ),
               ),
 
@@ -67,14 +147,14 @@ class _ForgetPasswordState extends State<ForgetPassword> {
 
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                // 3. استخدام TextFormField بدلاً من TextField لدعم الـ Validator
                 child: TextFormField(
                   controller: _emailController,
+                  enabled: !_isLoading,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter your email';
                     }
-                    if (!value.contains('@')) {
+                    if (!value.contains('@') || !value.contains('.com')) {
                       return 'Please enter a valid email';
                     }
                     return null;
@@ -82,8 +162,6 @@ class _ForgetPasswordState extends State<ForgetPassword> {
                   decoration: InputDecoration(
                     hintText: 'Email',
                     prefixIcon: const Icon(Icons.email, color: primaryColor),
-
-                    // تصميم الحدود العادية
                     enabledBorder: OutlineInputBorder(
                       borderSide: const BorderSide(
                         color: primaryColor,
@@ -94,7 +172,6 @@ class _ForgetPasswordState extends State<ForgetPassword> {
                     focusedBorder: const OutlineInputBorder(
                       borderSide: BorderSide(color: primaryColor, width: 2),
                     ),
-                    // 4. تصميم الحدود عند وجود خطأ (ستظهر بالأحمر تلقائياً)
                     errorBorder: OutlineInputBorder(
                       borderSide: const BorderSide(color: Colors.red, width: 2),
                       borderRadius: BorderRadius.circular(5),
@@ -110,17 +187,7 @@ class _ForgetPasswordState extends State<ForgetPassword> {
               const SizedBox(height: 30),
 
               GestureDetector(
-                onTap: () {
-                  // 5. التحقق من الفورم عند الضغط
-                  if (_formKey.currentState!.validate()) {
-                    // إذا كان الإيميل مكتوباً بشكل صحيح
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Reset link sent to your email'),
-                      ),
-                    );
-                  }
-                },
+                onTap: _isLoading ? null : _sendResetLink,
                 child: Container(
                   width: 199.63,
                   height: 38.21,
@@ -129,15 +196,24 @@ class _ForgetPasswordState extends State<ForgetPassword> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Center(
-                    child: Text(
-                      'Reset Password',
-                      style: GoogleFonts.poppins(
-                        textStyle: const TextStyle(
-                          fontSize: 18,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            'Reset Password',
+                            style: GoogleFonts.poppins(
+                              textStyle: const TextStyle(
+                                fontSize: 18,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
                   ),
                 ),
               ),
@@ -145,7 +221,7 @@ class _ForgetPasswordState extends State<ForgetPassword> {
               const SizedBox(height: 20),
 
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: _isLoading ? null : () => Navigator.pop(context),
                 child: const Text(
                   'Back to Login',
                   style: TextStyle(color: primaryColor),

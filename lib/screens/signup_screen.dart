@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'Home/home_screen.dart';
 import 'login_screen.dart';
+import '../config/api_config.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -28,7 +29,6 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _isLoading = false;
 
   static const Color primaryColor = Color(0xFF67C2B9);
-  static const String baseUrl = 'https://localhost:7057'; // غير الرابط حسب إعداداتك
 
   @override
   void dispose() {
@@ -51,7 +51,7 @@ class _SignupScreenState extends State<SignupScreen> {
       final userName = '${_firstNameController.text.trim()}_${_lastNameController.text.trim()}';
       
       final response = await http.post(
-        Uri.parse('$baseUrl/api/Auth/register'),
+        Uri.parse('${ApiConfig.baseUrl}/api/Auth/register'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'firstName': _firstNameController.text.trim(),
@@ -76,6 +76,16 @@ class _SignupScreenState extends State<SignupScreen> {
           await prefs.setStringList('roles', List<String>.from(data['roles']));
           await prefs.setString('user_email', data['email']);
           
+          // ✅ حفظ الاسم الأول والاسم الأخير
+          await prefs.setString('user_first_name', _firstNameController.text.trim());
+          await prefs.setString('user_last_name', _lastNameController.text.trim());
+          
+          // ✅ حفظ الاسم الكامل (اختياري)
+          String fullName = '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}';
+          await prefs.setString('user_full_name', fullName);
+          
+          print('✅ Signup successful - First name saved: ${_firstNameController.text.trim()}');
+          
           if (!mounted) return;
           Navigator.pushReplacement(
             context,
@@ -89,6 +99,7 @@ class _SignupScreenState extends State<SignupScreen> {
         _showErrorDialog(errorData.toString());
       }
     } catch (e) {
+      print('❌ Signup error: $e');
       _showErrorDialog('خطأ في الاتصال بالخادم. تأكد من تشغيل الخادم');
     } finally {
       if (mounted) setState(() => _isLoading = false);

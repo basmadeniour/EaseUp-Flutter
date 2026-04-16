@@ -9,6 +9,7 @@ import '../Journal/journal_screen.dart';
 import '../exercises_screen.dart';
 import '../goal_screen.dart';
 import 'home_widgets.dart';
+import '../../config/api_config.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,9 +21,9 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int surveyCount = 0;
   bool _isLoading = true;
+  String _userName = '';  // متغير لتخزين الاسم الأول فقط
   
   static const Color primaryColor = Color(0xFF67C2B9);
-  static const String baseUrl = 'https://localhost:7057'; // غير الرابط حسب إعداداتك
 
   // --- المخزن الرئيسي للبيانات (للمزامنة) ---
   List<Map<String, String>> globalJournalEntries = [
@@ -38,6 +39,51 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadGoals();
+    _loadUserName();  // تحميل اسم المستخدم
+  }
+
+  // ✅ دالة تحميل الاسم الأول فقط من SharedPreferences
+  Future<void> _loadUserName() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // ✅ محاولة قراءة الاسم الأول المخزن
+    String firstName = prefs.getString('user_first_name') ?? '';
+    
+    if (firstName.isNotEmpty) {
+      // تنسيق الاسم: أول حرف كبير والباقي صغير
+      String formattedName = _capitalizeName(firstName);
+      setState(() {
+        _userName = formattedName;
+      });
+      print('✅ HomeScreen - First name loaded: $_userName');
+    } else {
+      // ❌ إذا لم يكن الاسم الأول موجوداً، استخدمي البريد الإلكتروني كبديل
+      final email = prefs.getString('user_email') ?? 'User';
+      String name = email.split('@').first;
+      
+      // تنسيق الاسم
+      String formattedName = _capitalizeName(name);
+      
+      setState(() {
+        _userName = formattedName;
+      });
+      print('✅ HomeScreen - Email fallback: $email, Name: $_userName');
+    }
+  }
+
+  // ✅ دالة مساعدة لتنسيق الاسم (أول حرف كبير والباقي صغير)
+  String _capitalizeName(String name) {
+    if (name.isEmpty) return 'User';
+    
+    // إزالة المسافات الزائدة
+    name = name.trim();
+    
+    // جعل أول حرف كبير والباقي صغير
+    if (name.length == 1) {
+      return name.toUpperCase();
+    }
+    
+    return name[0].toUpperCase() + name.substring(1).toLowerCase();
   }
 
   // تحميل الأهداف فقط
@@ -55,7 +101,7 @@ class _HomeScreenState extends State<HomeScreen> {
       
       // جلب الأهداف فقط
       final goalsResponse = await http.get(
-        Uri.parse('$baseUrl/api/Goals/my-goals'),
+        Uri.parse('${ApiConfig.baseUrl}/api/Goals/my-goals'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -152,6 +198,9 @@ class _HomeScreenState extends State<HomeScreen> {
     await prefs.remove('auth_token');
     await prefs.remove('roles');
     await prefs.remove('user_email');
+    await prefs.remove('user_first_name');
+    await prefs.remove('user_last_name');
+    await prefs.remove('user_full_name');
     
     if (!mounted) return;
     Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
@@ -231,9 +280,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Hello, Engi!',
-                      style: TextStyle(
+                    // ✅ عرض الاسم الأول فقط
+                    Text(
+                      'Hello, $_userName!',
+                      style: const TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.5,

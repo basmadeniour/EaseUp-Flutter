@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../config/api_config.dart'; // إضافة import الـ config
 
 class ExercisesPage extends StatefulWidget {
   const ExercisesPage({super.key});
@@ -19,7 +20,7 @@ class _ExercisesPageState extends State<ExercisesPage> {
   List<Map<String, dynamic>> exercises = [];
   
   static const Color primaryColor = Color(0xFF67C2B9);
-  static const String baseUrl = 'https://localhost:7057'; // غير الرابط حسب إعداداتك
+  // تم حذف السطر الثابت واستخدام ApiConfig بدلاً منه
 
   @override
   void initState() {
@@ -36,7 +37,7 @@ class _ExercisesPageState extends State<ExercisesPage> {
       final token = prefs.getString('auth_token');
       
       final response = await http.get(
-        Uri.parse('$baseUrl/api/Exercises/all'),
+        Uri.parse('${ApiConfig.baseUrl}/api/Exercises/all'), // استخدام ApiConfig
         headers: {
           'Content-Type': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
@@ -161,7 +162,7 @@ class _ExercisesPageState extends State<ExercisesPage> {
       }
       
       final response = await http.post(
-        Uri.parse('$baseUrl/api/Exercises/complete'),
+        Uri.parse('${ApiConfig.baseUrl}/api/Exercises/complete'), // استخدام ApiConfig
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',

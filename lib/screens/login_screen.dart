@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'signup_screen.dart';
 import 'Home/home_screen.dart';
 import 'forgot_password.dart';
+import '../config/api_config.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,7 +15,6 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // 1. تعريف مفتاح الفورم والـ Controllers للوصول للداتا
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -22,27 +22,49 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
   static const Color primaryColor = Color(0xFF67C2B9);
-  static const String baseUrl = 'https://localhost:7057'; // غير الرابط حسب إعداداتك
+
+  @override
+  void initState() {
+    super.initState();
+    _checkIfAlreadyLoggedIn();
+  }
 
   @override
   void dispose() {
-    // تنظيف الـ Controllers عند إغلاق الشاشة
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
+  // دالة التحقق من وجود token مخزن
+  Future<void> _checkIfAlreadyLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    
+    if (token != null && token.isNotEmpty) {
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      }
+    }
+  }
+
   // دالة تسجيل الدخول
   Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) return;
+    
     setState(() => _isLoading = true);
     
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/Auth/login'),
+        Uri.parse('${ApiConfig.baseUrl}/api/Auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': _emailController.text.trim(),
           'password': _passwordController.text,
+          'rememberMe': false
         }),
       );
       
@@ -56,6 +78,24 @@ class _LoginScreenState extends State<LoginScreen> {
           await prefs.setStringList('roles', List<String>.from(data['roles']));
           await prefs.setString('user_email', data['email']);
           
+          // ✅ حفظ الاسم الأول والاسم الأخير من استجابة الخادم
+          if (data['firstName'] != null && data['firstName'].toString().isNotEmpty) {
+            await prefs.setString('user_first_name', data['firstName']);
+          }
+          if (data['lastName'] != null && data['lastName'].toString().isNotEmpty) {
+            await prefs.setString('user_last_name', data['lastName']);
+          }
+          
+          // ✅ حفظ الاسم الكامل (اختياري)
+          String firstName = data['firstName'] ?? '';
+          String lastName = data['lastName'] ?? '';
+          String fullName = '$firstName $lastName'.trim();
+          if (fullName.isNotEmpty) {
+            await prefs.setString('user_full_name', fullName);
+          }
+          
+          print('✅ Login successful - First name saved: ${data['firstName']}');
+          
           if (!mounted) return;
           Navigator.pushReplacement(
             context,
@@ -64,15 +104,26 @@ class _LoginScreenState extends State<LoginScreen> {
         } else {
           _showErrorDialog(data['message'] ?? 'فشل تسجيل الدخول');
         }
+      } else if (response.statusCode == 401) {
+        _showErrorDialog('البريد الإلكتروني أو كلمة المرور غير صحيحة');
       } else {
         final errorData = jsonDecode(response.body);
         _showErrorDialog(errorData.toString());
       }
     } catch (e) {
+      print('❌ Login error: $e');
       _showErrorDialog('خطأ في الاتصال بالخادم. تأكد من تشغيل الخادم');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // دالة مسح البيانات المخزنة (للاختبار)
+  Future<void> _clearStoredData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    _showErrorDialog('تم مسح جميع البيانات المخزنة');
+    print('✅ All stored data cleared');
   }
 
   void _showErrorDialog(String message) {
@@ -81,6 +132,7 @@ class _LoginScreenState extends State<LoginScreen> {
         content: Text(message),
         backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
       ),
     );
   }
@@ -114,6 +166,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     _buildLoginButton(context),
                     const SizedBox(height: 25),
                     _buildSignupRedirect(),
+                    const SizedBox(height: 10),
+                    _buildClearDataButton(),
                   ],
                 ),
               ),
@@ -125,7 +179,16 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // --- دوال بناء الـ Widgets مع إضافة القيود ---
+  // زر مسح البيانات المخزنة (للاختبار فقط)
+  Widget _buildClearDataButton() {
+    return TextButton(
+      onPressed: _clearStoredData,
+      child: const Text(
+        'Clear Saved Data (Test Only)',
+        style: TextStyle(color: Colors.grey, fontSize: 12),
+      ),
+    );
+  }
 
   Widget _buildEmailField() {
     return _customTextField(
@@ -291,7 +354,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-// --- الكليبرز (نفس كودك دون تعديل) ---
+// --- الكليبرز ---
 class TopWaveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
