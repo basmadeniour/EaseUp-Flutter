@@ -94,6 +94,14 @@ class _LoginScreenState extends State<LoginScreen> {
             await prefs.setString('user_full_name', fullName);
           }
           
+          // ✅ حفظ studentId (مهم جداً لتحديث الملف الشخصي)
+          if (data['studentId'] != null) {
+            await prefs.setInt('student_id', data['studentId']);
+            print('✅ Student ID saved: ${data['studentId']}');
+          } else {
+            print('⚠️ Warning: studentId not returned from server');
+          }
+          
           print('✅ Login successful - First name saved: ${data['firstName']}');
           
           if (!mounted) return;

@@ -36,16 +36,19 @@ dependencies:
   google_fonts: ^6.2.1
   url_launcher: ^6.3.0
   shared_preferences: ^2.2.0
+  
+  # ✅ حزمة رفع الصور فقط (تدعم Web و Mobile تلقائياً)
+  image_picker: ^1.0.0
+  
+  # ✅ إضافة حزمة Cupertino Icons
+  cupertino_icons: ^1.0.8
 
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "images/app_logo.png" # مسار صورتك اللي عايزة تخليها أيقونة
-  adaptive_icon_background: "#ffffff" # لون الخلفية للأندرويد (اختياري)
+  image_path: "images/app_logo.png"
+  adaptive_icon_background: "#ffffff"
   adaptive_icon_foreground: "images/app_logo.png"
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
 
 dev_dependencies:
   flutter_test:

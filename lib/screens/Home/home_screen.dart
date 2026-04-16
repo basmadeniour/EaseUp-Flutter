@@ -22,6 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int surveyCount = 0;
   bool _isLoading = true;
   String _userName = '';  // متغير لتخزين الاسم الأول فقط
+  String? _profileImageUrl;  // ✅ إضافة متغير لصورة المستخدم
   
   static const Color primaryColor = Color(0xFF67C2B9);
 
@@ -40,6 +41,35 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _loadGoals();
     _loadUserName();  // تحميل اسم المستخدم
+    _loadUserProfileImage();  // ✅ تحميل صورة المستخدم
+  }
+
+  // ✅ دالة تحميل صورة المستخدم من SharedPreferences و API
+  Future<void> _loadUserProfileImage() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    final studentId = prefs.getInt('student_id');
+    
+    if (token == null || studentId == null) return;
+    
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/api/Profile/student/profile?studentId=$studentId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          _profileImageUrl = data['profilePictureUrl'];
+        });
+      }
+    } catch (e) {
+      print('❌ Error loading profile image: $e');
+    }
   }
 
   // ✅ دالة تحميل الاسم الأول فقط من SharedPreferences
@@ -229,16 +259,8 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         actions: [
           _buildNotificationAction(context),
-          IconButton(
-            icon: const Icon(
-              Icons.account_circle_outlined,
-              color: Colors.white,
-            ),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const AboutYouScreen()),
-            ),
-          ),
+          // ✅ صورة المستخدم في AppBar
+          _buildProfileAvatar(),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Colors.white),
             onSelected: (value) {
@@ -357,6 +379,31 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
+    );
+  }
+
+  // ✅ صورة المستخدم في AppBar
+  Widget _buildProfileAvatar() {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AboutYouScreen()),
+          );
+        },
+        child: CircleAvatar(
+          radius: 16,
+          backgroundColor: Colors.white,
+          backgroundImage: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
+              ? NetworkImage('${ApiConfig.baseUrl}$_profileImageUrl')
+              : null,
+          child: _profileImageUrl == null || _profileImageUrl!.isEmpty
+              ? const Icon(Icons.person, size: 16, color: primaryColor)
+              : null,
+        ),
+      ),
     );
   }
 
